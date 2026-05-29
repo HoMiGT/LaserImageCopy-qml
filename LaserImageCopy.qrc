@@ -1,0 +1,14 @@
+<RCC>
+    <qresource prefix="/">
+        <file>LaserImageCopy.qmlproject</file>
+        <file>LaserImageCopy/Constants.qml</file>
+        <file>LaserImageCopy/EventListModel.qml</file>
+        <file>LaserImageCopy/EventListSimulator.qml</file>
+        <file>LaserImageCopy/qmldir</file>
+        <file>LaserImageCopyContent/App.qml</file>
+        <file>LaserImageCopyContent/icons/move-to-folder.svg</file>
+        <file>LaserImageCopyContent/PathSelector.qml</file>
+        <file>LaserImageCopyContent/Screen01.ui.qml</file>
+        <file>qtquickcontrols2.conf</file>
+    </qresource>
+</RCC>
