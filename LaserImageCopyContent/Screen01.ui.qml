@@ -22,6 +22,8 @@ Rectangle {
     property alias srcAbsPath: srcPath.pathText
     property alias dstAbsPath: dstPath.pathText
 
+    property bool isVisible: false
+
     signal choice8k()
     signal choice16k()
     signal choiceCustom()
@@ -63,7 +65,10 @@ Rectangle {
                     font.pointSize: 12
                     onCheckedChanged: {
                         if (checked){
+                            isVisible = true
                             rectangle.choice16k()
+                        }else{
+                            isVisible = false
                         }
                     }
                 }
@@ -79,6 +84,13 @@ Rectangle {
                         }
                     }
                 }
+
+                CheckBox{
+                    id: isSplitImage
+                    text: "是否切分图片"
+                    visible: isVisible
+                }
+
                 Item {
                     Layout.fillWidth: true
                 }

@@ -9,13 +9,11 @@ qt6_add_qml_module(LaserImageCopyContent
     VERSION 1.0
     RESOURCE_PREFIX "/qt/qml"
     QML_FILES
-
+        "App.qml"
         "PathSelector.qml"
         "Screen01.ui.qml"
     RESOURCES
         "icons/move-to-folder.svg"
-        QML_FILES
-        QML_FILES App.qml
 )
 
 
