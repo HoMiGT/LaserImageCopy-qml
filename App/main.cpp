@@ -5,14 +5,18 @@
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QSettings>
+#include <qqml.h>
 
 #include "autogen/environment.h"
 #include "backend.h"
+#include "foldermodel.h"
 
 int main(int argc, char *argv[])
 {
     set_qt_environment();
     QApplication app(argc, argv);
+
+    qmlRegisterUncreatableType<FolderModel>("LaserImageCopy", 1, 0, "FolderModel", "Cannot create FolderModel in QML");
 
     QQmlApplicationEngine engine;
 

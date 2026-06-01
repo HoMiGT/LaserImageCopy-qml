@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
 import LaserImageCopy 1.0
 import QtQuick.Dialogs
 
@@ -10,57 +11,76 @@ Item {
     property string pathText: ""
     property string kind: "src"
 
-    height: 50
-    width: 300
+    implicitWidth: 350
+    implicitHeight: 50
 
-    Text {
-        id: label
-        text: "原始路径:"
-        anchors.left: parent.left
-        anchors.verticalCenter: parent.verticalCenter
-        font.pixelSize: 12
-    }
+    RowLayout{
+        anchors.fill: parent
+        anchors.leftMargin: 5
+        anchors.rightMargin: 5
+        spacing: 12
 
-    Item {
-        id: inputGroup
-        anchors.left: label.right
-        anchors.leftMargin: 12
-        anchors.right: button.left
-        anchors.rightMargin: 12
-        anchors.verticalCenter: parent.verticalCenter
-        height: 30
-
-        TextInput {
-            id: field
-            text: root.pathText
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.bottom: underline.top
-            anchors.bottomMargin: 3
-            height: 20
-            font.pixelSize: 12
-            clip: true
+        Text {
+            id: label
+            text: root.labelText
+            font.pixelSize: 14
+            font.weight: Font.Medium
+            color: "#374151"
+            Layout.alignment: Qt.AlignVCenter
         }
 
-        Rectangle {
-            id: underline
-            height: 1
-            color: "#D3D3D3"
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.bottom: parent.bottom
+        Item {
+            id: inputGroup
+            implicitHeight: 36
+            Layout.fillWidth: true
+            Layout.alignment: Qt.AlignVCenter
+
+            Rectangle {
+                anchors.fill: parent
+                color: "#F9FAFB"
+                radius: 8
+                border.color: "#D1D5DB"
+                border.width: 1
+            }
+
+            TextInput {
+                id: field
+                text: root.pathText
+                anchors.fill: parent
+                anchors.leftMargin: 12
+                anchors.rightMargin: 12
+                verticalAlignment: TextInput.AlignVCenter
+                font.pixelSize: 13
+                color: "#1F2937"
+                clip: true
+                selectByMouse: true
+            }
         }
-    }
 
-    RoundButton{
-        id: button
-        text: qsTr("...")
-        anchors.right: parent.right
-        anchors.verticalCenter: parent.verticalCenter
-        radius: 12
+        Button {
+            id: button
+            text: qsTr("浏览")
+            Layout.alignment: Qt.AlignVCenter
+            implicitHeight: 36
+            
+            background: Rectangle {
+                color: button.down ? "#E5E7EB" : (button.hovered ? "#F3F4F6" : "#FFFFFF")
+                radius: 8
+                border.color: "#D1D5DB"
+                border.width: 1
+            }
+            contentItem: Text {
+                text: button.text
+                font.pixelSize: 13
+                font.weight: Font.Medium
+                color: "#374151"
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+            }
 
-        onClicked: {
-            folderDialog.open()
+            onClicked: {
+                folderDialog.open()
+            }
         }
     }
 

@@ -14,6 +14,7 @@ qt6_add_qml_module(LaserImageCopyContent
         "Screen01.ui.qml"
     RESOURCES
         "icons/move-to-folder.svg"
+        QML_FILES PathListView.qml
 )
 
 

@@ -3,12 +3,17 @@
 #include <QFile>
 
 Backend::Backend(QObject *parent)
-    :QObject(parent)
-{}
+    :QObject(parent), m_srcModel(new FolderModel(this)), m_dstModel(new FolderModel(this))
+{
+    m_srcModel->loadDummyData();
+    m_dstModel->loadDummyData();
+}
 
 Backend::Backend(std::unique_ptr<QSettings> setting)
-    :m_setting(std::move(setting))
+    :m_setting(std::move(setting)), m_srcModel(new FolderModel(this)), m_dstModel(new FolderModel(this))
 {
+    m_srcModel->loadDummyData();
+    m_dstModel->loadDummyData();
 }
 
 auto Backend::toLocalPath(const QUrl &url)const ->QString{
@@ -36,3 +41,10 @@ auto Backend::get16kPath() const -> QVariantMap
     return map;
 }
 
+FolderModel* Backend::srcModel() const {
+    return m_srcModel;
+}
+
+FolderModel* Backend::dstModel() const {
+    return m_dstModel;
+}

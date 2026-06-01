@@ -9,6 +9,7 @@ Check out https://doc.qt.io/qtcreator/creator-quick-ui-forms.html for details on
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Effects
 import LaserImageCopy
 
 Rectangle {
@@ -16,11 +17,14 @@ Rectangle {
     width: Constants.width
     height: Constants.height
 
-    color: Constants.backgroundColor
+    color: "#F5F7FA" // 极其现代、舒适的灰蓝色背景
     layer.smooth: true
 
     property alias srcAbsPath: srcPath.pathText
     property alias dstAbsPath: dstPath.pathText
+    
+    property alias srcModel: srcPathListView.model
+    property alias dstModel: dstPathListView.model
 
     property bool isVisible: false
 
@@ -35,20 +39,36 @@ Rectangle {
         Item {
             id: radioButtonGroup
             Layout.fillWidth: true
-            Layout.preferredHeight: 60
-            Layout.topMargin: 20
+            Layout.preferredHeight: 70
+            Layout.topMargin: 24
             Layout.leftMargin: 30
             Layout.rightMargin: 30
+            
+            Rectangle {
+                anchors.fill: parent
+                color: "#FFFFFF"
+                radius: 16
+                border.color: "#E5E7EB"
+                border.width: 1
+                layer.enabled: true
+                layer.effect: MultiEffect {
+                    shadowEnabled: true
+                    shadowColor: "#10000000"
+                    shadowBlur: 20
+                }
+            }
 
             RowLayout {
                 id: radioButtonRow
                 anchors.fill: parent
+                anchors.leftMargin: 24
+                anchors.rightMargin: 24
                 spacing: 30
 
                 RadioButton {
                     id: radioButton1
                     text: qsTr("8K产线")
-                    font.bold: true
+                    font.weight: Font.Medium
                     font.pointSize: 12
                     checked: true
                     onCheckedChanged: {
@@ -61,7 +81,7 @@ Rectangle {
                 RadioButton {
                     id: radioButton2
                     text: qsTr("16K产线")
-                    font.bold: true
+                    font.weight: Font.Medium
                     font.pointSize: 12
                     onCheckedChanged: {
                         if (checked){
@@ -76,7 +96,7 @@ Rectangle {
                 RadioButton {
                     id: radioButton3
                     text: qsTr("自定义")
-                    font.bold: true
+                    font.weight: Font.Medium
                     font.pointSize: 12
                     onCheckedChanged: {
                         if(checked){
@@ -88,6 +108,8 @@ Rectangle {
                 CheckBox{
                     id: isSplitImage
                     text: "是否切分图片"
+                    font.weight: Font.Medium
+                    font.pointSize: 12
                     visible: isVisible
                 }
 
@@ -108,45 +130,94 @@ Rectangle {
             RowLayout {
                 id: rectnagleGroupRow
                 anchors.fill: parent
-                spacing: 10
+                spacing: 20
+                
                 Rectangle {
                     id: rectangle1
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    color: "#ffffff"
-                    radius: 50
+                    color: "#FFFFFF"
+                    radius: 16
+                    border.color: "#E5E7EB"
+                    border.width: 1
                     transformOrigin: Item.Center
+
                     PathSelector {
                         id: srcPath
                         labelText: "原始路径:"
                         anchors.top: parent.top
                         anchors.left: parent.left
-                        anchors.topMargin: 10
-                        anchors.leftMargin: 30
+                        anchors.right: parent.right
+                        anchors.topMargin: 20
+                        anchors.leftMargin: 24
+                        anchors.rightMargin: 24
+                    }
+                    
+                    PathListView {
+                        id: srcPathListView
+                        anchors.top: srcPath.bottom
+                        anchors.bottom: parent.bottom
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.topMargin: 16
+                        anchors.bottomMargin: 20
+                        anchors.leftMargin: 24
+                        anchors.rightMargin: 24
                     }
                 }
+                
                 RoundButton {
                     id: roundButton
-                    Layout.preferredWidth: 129
-                    Layout.preferredHeight: 129
-                    icon.height: 80
-                    icon.width: 80
+                    Layout.preferredWidth: 64
+                    Layout.preferredHeight: 64
+                    icon.height: 36
+                    icon.width: 36
                     icon.source: "icons/move-to-folder.svg"
+                    
+                    // 使其看起来更活泼、现代
+                    background: Rectangle {
+                        radius: 32
+                        color: roundButton.down ? "#2563EB" : (roundButton.hovered ? "#60A5FA" : "#3B82F6")
+                        layer.enabled: true
+                        layer.effect: MultiEffect {
+                            shadowEnabled: true
+                            shadowColor: "#403B82F6"
+                            shadowBlur: 16
+                        }
+                    }
+                    icon.color: "#FFFFFF"
                 }
+                
                 Rectangle {
                     id: rectangle2
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    radius: 50
-                    color: "#ffffff"
+                    color: "#FFFFFF"
+                    radius: 16
+                    border.color: "#E5E7EB"
+                    border.width: 1
 
                     PathSelector {
                         id: dstPath
                         labelText: "目标路径:"
                         anchors.top: parent.top
                         anchors.left: parent.left
-                        anchors.topMargin: 10
-                        anchors.leftMargin: 30
+                        anchors.right: parent.right
+                        anchors.topMargin: 20
+                        anchors.leftMargin: 24
+                        anchors.rightMargin: 24
+                    }
+                    
+                    PathListView {
+                        id: dstPathListView
+                        anchors.top: dstPath.bottom
+                        anchors.bottom: parent.bottom
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.topMargin: 16
+                        anchors.bottomMargin: 20
+                        anchors.leftMargin: 24
+                        anchors.rightMargin: 24
                     }
                 }
             }
