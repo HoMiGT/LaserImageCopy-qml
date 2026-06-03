@@ -1,5 +1,3 @@
-
-
 /*
 This is a UI file (.ui.qml) that is intended to be edited in Qt Design Studio only.
 It is supposed to be strictly declarative and only uses a subset of QML. If you edit
@@ -20,17 +18,20 @@ Rectangle {
     color: "#F5F7FA" // 极其现代、舒适的灰蓝色背景
     layer.smooth: true
 
-    property alias srcAbsPath: srcPath.pathText
-    property alias dstAbsPath: dstPath.pathText
-    
     property alias srcModel: srcPathListView.model
     property alias dstModel: dstPathListView.model
 
+    property alias srcPathSelector: srcPath
+    property alias dstPathSelector: dstPath
+
+    property string srcPathText
+    property string dstPathText
+
     property bool isVisible: false
 
-    signal choice8k()
-    signal choice16k()
-    signal choiceCustom()
+    signal choice8k
+    signal choice16k
+    signal choiceCustom
 
     ColumnLayout {
         id: rectangleColumn
@@ -40,23 +41,9 @@ Rectangle {
             id: radioButtonGroup
             Layout.fillWidth: true
             Layout.preferredHeight: 70
-            Layout.topMargin: 24
-            Layout.leftMargin: 30
-            Layout.rightMargin: 30
-            
-            Rectangle {
-                anchors.fill: parent
-                color: "#FFFFFF"
-                radius: 16
-                border.color: "#E5E7EB"
-                border.width: 1
-                layer.enabled: true
-                layer.effect: MultiEffect {
-                    shadowEnabled: true
-                    shadowColor: "#10000000"
-                    shadowBlur: 20
-                }
-            }
+            Layout.topMargin: 5
+            Layout.leftMargin: 10
+            Layout.rightMargin: 10
 
             RowLayout {
                 id: radioButtonRow
@@ -72,8 +59,8 @@ Rectangle {
                     font.pointSize: 12
                     checked: true
                     onCheckedChanged: {
-                        if (checked){
-                            rectangle.choice8k()
+                        if (checked) {
+                            rectangle.choice8k();
                         }
                     }
                 }
@@ -84,11 +71,11 @@ Rectangle {
                     font.weight: Font.Medium
                     font.pointSize: 12
                     onCheckedChanged: {
-                        if (checked){
-                            isVisible = true
-                            rectangle.choice16k()
-                        }else{
-                            isVisible = false
+                        if (checked) {
+                            isVisible = true;
+                            rectangle.choice16k();
+                        } else {
+                            isVisible = false;
                         }
                     }
                 }
@@ -99,15 +86,15 @@ Rectangle {
                     font.weight: Font.Medium
                     font.pointSize: 12
                     onCheckedChanged: {
-                        if(checked){
-                             rectangle.choiceCustom()
+                        if (checked) {
+                            rectangle.choiceCustom();
                         }
                     }
                 }
 
-                CheckBox{
-                    id: isSplitImage
-                    text: "是否切分图片"
+                CheckBox {
+                    id: isVConcat
+                    text: "拼接1/4"
                     font.weight: Font.Medium
                     font.pointSize: 12
                     visible: isVisible
@@ -131,7 +118,7 @@ Rectangle {
                 id: rectnagleGroupRow
                 anchors.fill: parent
                 spacing: 20
-                
+
                 Rectangle {
                     id: rectangle1
                     Layout.fillWidth: true
@@ -145,6 +132,7 @@ Rectangle {
                     PathSelector {
                         id: srcPath
                         labelText: "原始路径:"
+                        pathText: srcPathText
                         anchors.top: parent.top
                         anchors.left: parent.left
                         anchors.right: parent.right
@@ -152,7 +140,7 @@ Rectangle {
                         anchors.leftMargin: 24
                         anchors.rightMargin: 24
                     }
-                    
+
                     PathListView {
                         id: srcPathListView
                         anchors.top: srcPath.bottom
@@ -165,7 +153,7 @@ Rectangle {
                         anchors.rightMargin: 24
                     }
                 }
-                
+
                 RoundButton {
                     id: roundButton
                     Layout.preferredWidth: 64
@@ -173,7 +161,7 @@ Rectangle {
                     icon.height: 36
                     icon.width: 36
                     icon.source: "icons/move-to-folder.svg"
-                    
+
                     // 使其看起来更活泼、现代
                     background: Rectangle {
                         radius: 32
@@ -186,8 +174,13 @@ Rectangle {
                         }
                     }
                     icon.color: "#FFFFFF"
+
+                    onClicked: {
+                        let cameraType = radioButton1.checked ? "8k" : (radioButton2.checked ? "16k" : "custom");
+                        backend.startCopy(srcPath.pathText, dstPath.pathText, cameraType, isVConcat.checked);
+                    }
                 }
-                
+
                 Rectangle {
                     id: rectangle2
                     Layout.fillWidth: true
@@ -200,6 +193,8 @@ Rectangle {
                     PathSelector {
                         id: dstPath
                         labelText: "目标路径:"
+                        kind: "dst"
+                        pathText: dstPathText
                         anchors.top: parent.top
                         anchors.left: parent.left
                         anchors.right: parent.right
@@ -207,7 +202,7 @@ Rectangle {
                         anchors.leftMargin: 24
                         anchors.rightMargin: 24
                     }
-                    
+
                     PathListView {
                         id: dstPathListView
                         anchors.top: dstPath.bottom

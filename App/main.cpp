@@ -11,33 +11,33 @@
 #include "backend.h"
 #include "foldermodel.h"
 
-int main(int argc, char *argv[])
-{
-    set_qt_environment();
-    QApplication app(argc, argv);
+int main(int argc, char *argv[]) {
+  set_qt_environment();
+  QApplication app(argc, argv);
 
-    qmlRegisterUncreatableType<FolderModel>("LaserImageCopy", 1, 0, "FolderModel", "Cannot create FolderModel in QML");
+  qmlRegisterUncreatableType<FolderModel>("LaserImageCopy", 1, 0, "FolderModel",
+                                          "Cannot create FolderModel in QML");
+  auto settings =
+      std::make_unique<QSettings>(":App/setting.ini", QSettings::IniFormat);
+  Backend backend{std::move(settings)};
+  QQmlApplicationEngine engine;
+  engine.rootContext()->setContextProperty("backend", &backend);
 
-    QQmlApplicationEngine engine;
-
-    auto settings = std::make_unique<QSettings>(":App/setting.ini", QSettings::IniFormat);
-    Backend backend{std::move(settings)};
-    engine.rootContext()->setContextProperty("backend", &backend);
-
-    const QUrl url(mainQmlFile);
-    QObject::connect(
-                &engine, &QQmlApplicationEngine::objectCreated, &app,
-                [url](QObject *obj, const QUrl &objUrl) {
+  const QUrl url(mainQmlFile);
+  QObject::connect(
+      &engine, &QQmlApplicationEngine::objectCreated, &app,
+      [url](QObject *obj, const QUrl &objUrl) {
         if (!obj && url == objUrl)
-            QCoreApplication::exit(-1);
-    }, Qt::QueuedConnection);
+          QCoreApplication::exit(-1);
+      },
+      Qt::QueuedConnection);
 
-    engine.addImportPath(QCoreApplication::applicationDirPath() + "/qml");
-    engine.addImportPath(":/");
-    engine.load(url);
+  engine.addImportPath(QCoreApplication::applicationDirPath() + "/qml");
+  engine.addImportPath(":/");
+  engine.load(url);
 
-    if (engine.rootObjects().isEmpty())
-        return -1;
+  if (engine.rootObjects().isEmpty())
+    return -1;
 
-    return app.exec();
+  return app.exec();
 }
