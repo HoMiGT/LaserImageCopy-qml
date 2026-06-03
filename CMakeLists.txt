@@ -22,7 +22,7 @@ find_package(Qt6 6.8 REQUIRED COMPONENTS Core Gui Widgets Qml Quick QuickTimelin
 qt_standard_project_setup()
 
 
-qt_add_executable(${CMAKE_PROJECT_NAME}
+qt_add_executable(${CMAKE_PROJECT_NAME} WIN32
     App/foldermodel.h App/foldermodel.cpp)
 
 qt_add_resources(${CMAKE_PROJECT_NAME} "configuration"
@@ -31,10 +31,13 @@ qt_add_resources(${CMAKE_PROJECT_NAME} "configuration"
         qtquickcontrols2.conf)
 
 
-qt_add_resources(${CMAKE_PROJECT_NAME} "app_setting"
-    PREFIX "/"
-    FILES
-        App/setting.ini)
+# 取消将 setting.ini 编译进资源文件，改为在编译后直接拷贝到 exe 所在的目录
+add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${CMAKE_CURRENT_SOURCE_DIR}/App/setting.ini"
+    "$<TARGET_FILE_DIR:${CMAKE_PROJECT_NAME}>/setting.ini"
+    COMMENT "Copying setting.ini to the output directory..."
+)
 
 
 include(qds)
@@ -53,3 +56,17 @@ install(TARGETS ${CMAKE_PROJECT_NAME}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+
+# 在 Windows 下编译完成后，自动调用 windeployqt 拷贝依赖的 Qt DLL 库到 exe 目录
+if(WIN32)
+    get_target_property(QT_QMAKE_EXECUTABLE Qt6::qmake IMPORTED_LOCATION)
+    get_filename_component(QT_BIN_DIR "${QT_QMAKE_EXECUTABLE}" DIRECTORY)
+    find_program(WINDEPLOYQT_EXECUTABLE windeployqt HINTS "${QT_BIN_DIR}")
+    
+    if(WINDEPLOYQT_EXECUTABLE)
+        add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD
+            COMMAND "${WINDEPLOYQT_EXECUTABLE}" --qmldir "${CMAKE_CURRENT_SOURCE_DIR}" "$<TARGET_FILE:${CMAKE_PROJECT_NAME}>"
+            COMMENT "Running windeployqt to copy dependent DLLs..."
+        )
+    endif()
+endif()

@@ -17,8 +17,8 @@ int main(int argc, char *argv[]) {
 
   qmlRegisterUncreatableType<FolderModel>("LaserImageCopy", 1, 0, "FolderModel",
                                           "Cannot create FolderModel in QML");
-  auto settings =
-      std::make_unique<QSettings>(":App/setting.ini", QSettings::IniFormat);
+  QString iniPath = QCoreApplication::applicationDirPath() + "/setting.ini";
+  auto settings = std::make_unique<QSettings>(iniPath, QSettings::IniFormat);
   Backend backend{std::move(settings)};
   QQmlApplicationEngine engine;
   engine.rootContext()->setContextProperty("backend", &backend);
