@@ -4,6 +4,9 @@ cmake_minimum_required(VERSION 3.21.1)
 option(LINK_INSIGHT "Link Qt Insight Tracker library" ON)
 option(BUILD_QDS_COMPONENTS "Build design studio components" ON)
 
+set(VCPKG_ROOT "D:/vcpkg" CACHE STRING "vcpkg root")
+set(CMAKE_TOOLCHAIN_FILE "${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "vcpkg toolchain file")
+
 project(LaserImageCopyApp LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
@@ -18,17 +21,30 @@ set(QML_IMPORT_PATH ${QT_QML_OUTPUT_DIRECTORY}
     FORCE
 )
 
+set(TIFF_INCLUDE_DIR "${VCPKG_ROOT}/installed/x64-windows/include")
+set(TIFF_LIBRARY "${VCPKG_ROOT}/installed/x64-windows/lib/tiff.lib")
+find_package(TIFF REQUIRED)
+
+set(OpenCV_ROOT "${VCPKG_ROOT}/installed/x64-windows/share/opencv4")
+find_package(OpenCV REQUIRED)
+
 find_package(Qt6 6.8 REQUIRED COMPONENTS Core Gui Widgets Qml Quick QuickTimeline ShaderTools Concurrent)
 qt_standard_project_setup()
 
-
-qt_add_executable(${CMAKE_PROJECT_NAME} WIN32
-    App/foldermodel.h App/foldermodel.cpp)
+qt_add_executable(${CMAKE_PROJECT_NAME} WIN32)
 
 qt_add_resources(${CMAKE_PROJECT_NAME} "configuration"
     PREFIX "/"
     FILES
         qtquickcontrols2.conf)
+
+target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
+        ${OpenCV_INCLUDE_DIRS}
+    )
+
+target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
+    ${OpenCV_LIBS}
+)
 
 
 # 取消将 setting.ini 编译进资源文件，改为在编译后直接拷贝到 exe 所在的目录

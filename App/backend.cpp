@@ -2,12 +2,17 @@
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
-#include <QThreadPool>
-#include <QtConcurrent>
 #include <QImage>
 #include <QPainter>
+#include <QThreadPool>
+#include <QtConcurrent>
 #include <atomic>
 #include <memory>
+#include <opencv2/opencv.hpp>
+#include <string>
+#include <vector>
+
+using namespace cv;
 
 Backend::Backend(QObject *parent)
     : QObject(parent), m_srcModel(new FolderModel(this)),
@@ -47,14 +52,14 @@ FolderModel *Backend::dstModel() const { return m_dstModel; }
 
 bool Backend::scanDirectory(const QString &path, const QString &cameraType,
                             const QString &kind) {
-    if (path.isEmpty()){
-        QList<FolderData> dataList;
-        if (kind == "src")
-            m_srcModel->setFolderData(dataList);
-        else
-            m_dstModel->setFolderData(dataList);
-        return false;
-    }
+  if (path.isEmpty()) {
+    QList<FolderData> dataList;
+    if (kind == "src")
+      m_srcModel->setFolderData(dataList);
+    else
+      m_dstModel->setFolderData(dataList);
+    return false;
+  }
 
   QDir rootDir(path);
   if (!rootDir.exists()) {
@@ -112,6 +117,30 @@ bool Backend::scanDirectory(const QString &path, const QString &cameraType,
   return true;
 }
 
+std::vector<std::vector<std::string>> inline split_with_overlap(
+    const std::vector<std::string> &input, const size_t n) {
+  std::vector<std::vector<std::string>> result;
+  if (n == 0 || input.empty())
+    return result;
+  result.reserve(n);
+  const auto total = input.size();
+  const auto base_size = static_cast<int>(std::ceil(static_cast<double>(total) /
+                                                    static_cast<double>(n))) +
+                         1;
+  int start{0};
+  int end{0};
+  for (auto i{0}; i < n; ++i) {
+    start = i == 0 ? i * base_size : i * (base_size - 1);
+    end = start + base_size;
+    if (end > total) {
+      end = total;
+      i = n; // 结束循环
+    }
+    result.emplace_back(input.begin() + start, input.begin() + end);
+  }
+  return result;
+}
+
 void Backend::startCopy(const QString &srcPath, const QString &dstPath,
                         const QString &cameraType, bool isVConcat) {
   if (srcPath.isEmpty() || dstPath.isEmpty())
@@ -121,19 +150,6 @@ void Backend::startCopy(const QString &srcPath, const QString &dstPath,
     QtConcurrent::run([this, srcPath, dstPath, cameraType]() {
       QElapsedTimer timer;
       timer.start();
-      struct StitchTask {
-        int k;
-        QString srcDirPath;
-        QString dstDirPath;
-        QString folderName;
-        QStringList files;
-        int originalSumCount;
-        int totalOutCount;
-        std::shared_ptr<std::atomic<int>> countPtr;
-        Backend *backend;
-      };
-
-      QList<StitchTask> tasks;
 
       for (const auto &folderData : m_dataList) {
         QString relPath = (cameraType == "custom") ? "" : folderData.folderName;
@@ -144,96 +160,133 @@ void Backend::startCopy(const QString &srcPath, const QString &dstPath,
           dstDir.mkpath(".");
         }
 
-        QStringList files = srcDir.entryList(QDir::Files | QDir::NoDotAndDotDot);
-        if (files.isEmpty()) continue;
-        
+        QStringList files =
+            srcDir.entryList(QDir::Files | QDir::NoDotAndDotDot);
+        if (files.isEmpty())
+          continue;
+
         // 确保文件按顺序排列
         files.sort();
 
-        int N = files.size();
-        // 拼接后全局高度：每张图与前一张重叠 1/4 (2000px)，即向下移动 6000px。最后一张贡献完整的 8000px。
-        int H_total = (N > 0) ? ((N - 1) * 6000 + 8000) : 0;
-        int M = (H_total + 7999) / 8000;
+        std::vector<std::string> stdFiles;
+        stdFiles.reserve(files.count());
 
-        std::shared_ptr<std::atomic<int>> copiedCount = std::make_shared<std::atomic<int>>(0);
-
-        for (int k = 0; k < M; ++k) {
-          tasks.append({k, srcDir.absolutePath(), dstDir.absolutePath(),
-                        folderData.folderName, files, folderData.sumCount, M, copiedCount, this});
+        for (const auto &file : files) {
+          stdFiles.emplace_back(file.toStdString());
         }
-      }
+        auto splitFiles = split_with_overlap(stdFiles, 8);
 
-      QtConcurrent::blockingMap(tasks, [](const StitchTask &task) {
-        int N = task.files.size();
-        int H_total = (N - 1) * 6000 + 8000;
-        
-        QImage outImg(8192, 8000, QImage::Format_RGB32);
-        outImg.fill(Qt::black);
-        QPainter painter(&outImg);
+        std::shared_ptr<std::atomic<int>> copiedCount =
+            std::make_shared<std::atomic<int>>(0);
+        int totalCount = files.count();
 
-        int Y_start = task.k * 8000;
-        int Y_end = std::min((task.k + 1) * 8000 - 1, H_total - 1);
-        
-        int Y_curr = Y_start;
-        while (Y_curr <= Y_end) {
-            int i = std::min(Y_curr / 6000, N - 1);
-            int Y_block_end = Y_end;
-            if (i < N - 1) {
-                Y_block_end = std::min(Y_end, (i + 1) * 6000 - 1);
+        struct SplitChunk {
+          int v_idx;
+          std::vector<std::string> chunkFiles;
+        };
+
+        QList<SplitChunk> chunks;
+        for (size_t v = 0; v < splitFiles.size(); ++v) {
+          chunks.append({static_cast<int>(v), splitFiles[v]});
+        }
+
+        QString srcDirPath = srcDir.absolutePath();
+        QString dstDirPath = dstDir.absolutePath();
+        QString folderName = folderData.folderName;
+
+        QtConcurrent::blockingMap(chunks, [this, srcDirPath, dstDirPath,
+                                           folderName, totalCount, copiedCount](
+                                              const SplitChunk &chunk) {
+          cv::Mat bottomPart;
+          for (size_t i = 0; i < chunk.chunkFiles.size(); ++i) {
+            QString srcFilePath =
+                srcDirPath + "/" + QString::fromStdString(chunk.chunkFiles[i]);
+            cv::Mat currImg = cv::imread(
+                srcFilePath.toLocal8Bit().toStdString(), cv::IMREAD_COLOR);
+            if (currImg.empty())
+              continue;
+
+            // 1. 先从原始当前图片中提取后 1/4 (比率计算)，供下一张使用
+            int h = currImg.rows;
+            int w = currImg.cols;
+            int copyH = h / 4;
+            int startY = h - copyH;
+            cv::Mat nextBottomPart;
+            if (copyH > 0 && startY >= 0 && startY < h) {
+              nextBottomPart = currImg(cv::Rect(0, startY, w, copyH)).clone();
             }
-            
-            int y_local = Y_curr - i * 6000;
-            int y_out = Y_curr - Y_start;
-            int h = Y_block_end - Y_curr + 1;
-            
-            QString srcFilePath = task.srcDirPath + "/" + task.files[i];
-            QImage srcImg(srcFilePath);
-            
-            painter.drawImage(0, y_out, srcImg, 0, y_local, 8192, h);
-            
-            Y_curr = Y_block_end + 1;
-        }
-        painter.end();
-        
-        // 保存图片
-        QString outFileName = QString("stitched_%1.jpg").arg(task.k, 4, 10, QChar('0'));
-        QString dstFilePath = task.dstDirPath + "/" + outFileName;
-        outImg.save(dstFilePath, "JPG", 90);
 
-        int current = ++(*task.countPtr);
-        
-        // 为了不改动折叠模型 (sumCount=N不变)，将输出张数等比例映射回源图片张数
-        int scaledCurrent = (task.totalOutCount > 0) ? (current * task.originalSumCount / task.totalOutCount) : 0;
-        if (current == task.totalOutCount) scaledCurrent = task.originalSumCount;
-        
-        // 目标路径：增加数量
-        QMetaObject::invokeMethod(
-            task.backend->dstModel(), "updateItemProgressByName",
-            Qt::QueuedConnection, Q_ARG(QString, task.folderName),
-            Q_ARG(int, scaledCurrent));
+            cv::Mat finalImg;
+            // 2. 将前一张的后 1/4 拼接到当前张的正上方，总高度增加
+            if (i > 0 && !bottomPart.empty()) {
+              if (bottomPart.cols == currImg.cols &&
+                  bottomPart.type() == currImg.type()) {
+                // 如果宽度和类型一致，使用高效的垂直拼接
+                cv::vconcat(bottomPart, currImg, finalImg);
+              } else {
+                // 如果不一致，按照最大宽度分配新图片空间进行拼接
+                int maxW = std::max(bottomPart.cols, currImg.cols);
+                int newH = bottomPart.rows + currImg.rows;
+                finalImg = cv::Mat::zeros(newH, maxW, currImg.type());
+                bottomPart.copyTo(
+                    finalImg(cv::Rect(0, 0, bottomPart.cols, bottomPart.rows)));
+                currImg.copyTo(finalImg(
+                    cv::Rect(0, bottomPart.rows, currImg.cols, currImg.rows)));
+              }
+            } else {
+              // 第一张图片不需要拼接
+              finalImg = currImg;
+            }
 
-        // 源路径：减少数量
-        int srcRemain = task.originalSumCount - scaledCurrent;
-        QMetaObject::invokeMethod(
-            task.backend->srcModel(), "updateItemProgressByName",
-            Qt::QueuedConnection, Q_ARG(QString, task.folderName),
-            Q_ARG(int, srcRemain));
-      });
+            // 更新 bottomPart 为下一张图准备
+            bottomPart = nextBottomPart;
+
+            // 3. 第1个vector之后的所有vector，都不需要保存第一张图片
+            bool shouldSave = true;
+            if (chunk.v_idx > 0 && i == 0) {
+              shouldSave = false;
+            }
+
+            if (shouldSave) {
+              QString dstFilePath = dstDirPath + "/" +
+                                    QString::fromStdString(chunk.chunkFiles[i]);
+              std::vector<int> compression_params = {cv::IMWRITE_JPEG_QUALITY,
+                                                     90};
+              // 注意这里保存的是最终拼接变长的 finalImg
+              cv::imwrite(dstFilePath.toLocal8Bit().toStdString(), finalImg,
+                          compression_params);
+
+              int current = ++(*copiedCount);
+
+              // 更新 UI 进度
+              QMetaObject::invokeMethod(
+                  dstModel(), "updateItemProgressByName", Qt::QueuedConnection,
+                  Q_ARG(QString, folderName), Q_ARG(int, current));
+
+              int srcRemain = totalCount - current;
+              QMetaObject::invokeMethod(
+                  srcModel(), "updateItemProgressByName", Qt::QueuedConnection,
+                  Q_ARG(QString, folderName), Q_ARG(int, srcRemain));
+            }
+          }
+        });
+      }
 
       // 拷贝完成后重命名源目录，添加 _copied 后缀
-      for (const auto &folderData : m_dataList) {
-        QString relPath = (cameraType == "custom") ? "" : folderData.folderName;
-        QDir srcDir(srcPath + (relPath.isEmpty() ? "" : ("/" + relPath)));
-        if (srcDir.exists()) {
-          QString newPath = srcDir.absolutePath() + "_copied";
-          QDir().rename(srcDir.absolutePath(), newPath);
-        }
-      }
+      // for (const auto &folderData : m_dataList) {
+      //   QString relPath = (cameraType == "custom") ? "" :
+      //   folderData.folderName; QDir srcDir(srcPath + (relPath.isEmpty() ? ""
+      //   : ("/" + relPath))); if (srcDir.exists()) {
+      //     QString newPath = srcDir.absolutePath() + "_copied";
+      //     QDir().rename(srcDir.absolutePath(), newPath);
+      //   }
+      // }
 
       qint64 elapsed = timer.elapsed();
-      QString msg = QString("拼接任务执行成功！\n总耗时: %1 秒").arg(elapsed / 1000.0, 0, 'f', 2);
+      QString msg = QString("拼接任务执行成功！\n总耗时: %1 秒")
+                        .arg(elapsed / 1000.0, 0, 'f', 2);
       emit copyFinished(msg);
-      
+
       qDebug() << "Stitch finished!";
     });
   } else {
@@ -300,17 +353,17 @@ void Backend::startCopy(const QString &srcPath, const QString &dstPath,
 
       // 拷贝完成后重命名源目录，添加 _copied 后缀
       for (const auto &folderData : m_dataList) {
-        QString relPath = (cameraType == "custom") ? "" :
-        folderData.folderName; QDir srcDir(srcPath + (relPath.isEmpty() ? ""
-        :
-        ("/" + relPath))); if (srcDir.exists()) {
+        QString relPath = (cameraType == "custom") ? "" : folderData.folderName;
+        QDir srcDir(srcPath + (relPath.isEmpty() ? "" : ("/" + relPath)));
+        if (srcDir.exists()) {
           QString newPath = srcDir.absolutePath() + "_copied";
           QDir().rename(srcDir.absolutePath(), newPath);
         }
       }
 
       qint64 elapsed = timer.elapsed();
-      QString msg = QString("拷贝任务执行成功！\n总耗时: %1 秒").arg(elapsed / 1000.0, 0, 'f', 2);
+      QString msg = QString("拷贝任务执行成功！\n总耗时: %1 秒")
+                        .arg(elapsed / 1000.0, 0, 'f', 2);
       emit copyFinished(msg);
 
       qDebug() << "Copy finished!";

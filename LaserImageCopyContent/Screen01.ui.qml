@@ -74,8 +74,10 @@ Rectangle {
                         if (checked) {
                             isVisible = true;
                             rectangle.choice16k();
+                            isVConcat.checked = true;
                         } else {
                             isVisible = false;
+                            isVConcat.checked = false;
                         }
                     }
                 }
