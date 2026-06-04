@@ -273,14 +273,14 @@ void Backend::startCopy(const QString &srcPath, const QString &dstPath,
       }
 
       // 拷贝完成后重命名源目录，添加 _copied 后缀
-      // for (const auto &folderData : m_dataList) {
-      //   QString relPath = (cameraType == "custom") ? "" :
-      //   folderData.folderName; QDir srcDir(srcPath + (relPath.isEmpty() ? ""
-      //   : ("/" + relPath))); if (srcDir.exists()) {
-      //     QString newPath = srcDir.absolutePath() + "_copied";
-      //     QDir().rename(srcDir.absolutePath(), newPath);
-      //   }
-      // }
+      for (const auto &folderData : m_dataList) {
+        QString relPath = (cameraType == "custom") ? "" :
+        folderData.folderName; QDir srcDir(srcPath + (relPath.isEmpty() ? ""
+        : ("/" + relPath))); if (srcDir.exists()) {
+          QString newPath = srcDir.absolutePath() + "_copied";
+          QDir().rename(srcDir.absolutePath(), newPath);
+        }
+      }
 
       qint64 elapsed = timer.elapsed();
       QString msg = QString("拼接任务执行成功！\n总耗时: %1 秒")
